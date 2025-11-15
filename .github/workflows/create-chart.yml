@@ -1,0 +1,31 @@
+name: Update KLSE Bank Chart
+
+on:
+  schedule:
+    - cron: '0 2 * * 1-5'  # 2 AM UTC, Mon–Fri
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install yfinance
+
+      - name: Run update script
+        run: python update_chart.py
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add index.html
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update KLSE bank chart" && git push)
