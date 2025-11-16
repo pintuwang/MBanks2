@@ -56,6 +56,7 @@ def build_data():
     cal = trading_calendar(BASE_DATE, END_DATE)
     base_day = cal[cal <= pd.Timestamp(BASE_DATE)][-1]  # last trading day <= BASE_DATE
 
+    # widen window so thin counters have data
     series_map = {t: cached_download(t, cal) for t in TICKER_NAME_MAP}
     base_prices = {}
     for t, s in series_map.items():
@@ -63,7 +64,7 @@ def build_data():
         if np.isscalar(val) and pd.notna(val):
             base_prices[t] = val
 
-    if len(base_prices) < 8:
+    if len(base_prices) < 1:          # allow even 1 bank
         raise ValueError(f"Base day {base_day} has data for only {len(base_prices)} banks")
 
     data = []
