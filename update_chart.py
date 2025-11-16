@@ -5,7 +5,7 @@ Regenerate index.html with:
   - one bank highlighted
   - KLSE-trading-day calendar
   - parquet cache
-  - weekly sampling to keep file small
+  - weekly sampling (runner-proof scalar build)
 """
 
 import yfinance as yf
@@ -52,38 +52,42 @@ def cached_download(ticker: str, cal: pd.DatetimeIndex) -> pd.Series:
     return s.reindex(cal).ffill(limit=5)
 
 def build_data():
-    # 1. build KLSE trading-day calendar (go back extra 3 months)
+    # 1. KLSE trading days
     cal = trading_calendar("2024-04-01", END_DATE)
 
-    # 2. download each ticker (wide window) and store series
+    # 2. download each ticker (wide window)
     series_map = {t: cached_download(t, cal) for t in TICKER_NAME_MAP}
 
-    # 3. find the first day that has ≥1 valid price
+    # 3. first day with ≥1 price
     first_valid = None
     for day in cal:
         if any(bool(pd.notna(s.loc[day].item())) for s in series_map.values()):
             first_valid = day
             break
     if first_valid is None:
-        raise RuntimeError("No prices at all in the entire period – check tickers.")
+        raise RuntimeError("No prices at all – check tickers.")
 
-    # 4. build price list for each bank
+    # 4. weekly Friday list – runner-proof scalar build
     data = []
     for ticker, name in TICKER_NAME_MAP.items():
         s = series_map[ticker]
-        if s.isna().all().item():
-            prices = []
-        else:
-            # 1. weekly Fridays, guaranteed DatetimeIndex
-            weekly = (s.dropna()
-                        .resample('W-FRI')
-                        .last()
-                        .dropna())
-            weekly.index = pd.to_datetime(weekly.index, errors='coerce')  # <-- redundant but safe
-            prices = [{"date": pd.to_datetime(d).strftime("%Y-%m-%d"), "price": round(v, 4)}
-                      for d, v in weekly.items()]# weekly Fridays – force Timestamp index
-            
-        data.append({"symbol": ticker, "name": name, "prices": prices})
+
+        if s.isna().all().item():          # truly no data
+            data.append({"symbol": ticker, "name": name, "prices": []})
+            continue
+
+        # drop NaNs and build weekly Fridays manually
+        s = s.dropna()
+        fri_days = pd.date_range(s.index.min(), s.index.max(), freq='W-FRI')
+
+        weekly = []
+        for fri in fri_days:
+            # nearest price on or before Friday
+            price = s.loc[:fri].iloc[-1] if not s.loc[:fri].empty else np.nan
+            if pd.notna(price):
+                weekly.append({"date": fri.strftime("%Y-%m-%d"),  # string
+                               "price": round(float(price), 4)})
+        data.append({"symbol": ticker, "name": name, "prices": weekly})
     return data
 
 def update_html(data):
