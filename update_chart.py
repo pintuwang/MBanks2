@@ -56,10 +56,7 @@ def build_data():
     cal = trading_calendar("2024-04-01", END_DATE)
 
     # 2. download each ticker (wide window) and store series
-    series_map = {}
-    for t in TICKER_NAME_MAP:
-        s = cached_download(t, cal)          # may be all-NaN
-        series_map[t] = s
+    series_map = {t: cached_download(t, cal) for t in TICKER_NAME_MAP}
 
     # 3. find the first day that has ≥1 valid price
     first_valid = None
@@ -67,7 +64,6 @@ def build_data():
         if any(bool(pd.notna(s.loc[day].item())) for s in series_map.values()):
             first_valid = day
             break
-  
     if first_valid is None:
         raise RuntimeError("No prices at all in the entire period – check tickers.")
 
@@ -78,10 +74,9 @@ def build_data():
         if s.isna().all().item():
             prices = []
         else:
-            s = s.dropna().resample('W-FRI').last().dropna()   # weekly
-            # FIX-1: convert index label to datetime before strftime
-            prices = [{"date": pd.to_datetime(d).strftime("%Y-%m-%d"), "price": round(v, 4)}
-                      for d, v in s.items()]
+            s = s.dropna().resample('W-FRI').last().dropna()   # weekly + Timestamp index
+            prices = [{"date": d.strftime("%Y-%m-%d"), "price": round(v, 4)}
+                      for d, v in s.items()]                   # d is already Timestamp
         data.append({"symbol": ticker, "name": name, "prices": prices})
     return data
 
