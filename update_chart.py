@@ -83,7 +83,7 @@ def build_data():
             s.index = pd.to_datetime(s.index)               # ensure Timestamp
             prices = [{"date": d.strftime("%Y-%m-%d"), "price": round(v, 4)}
                       for d, v in s.items()]
-       data.append({"symbol": ticker, "name": name, "prices": prices})
+        data.append({"symbol": ticker, "name": name, "prices": prices})
     return data
 
 def update_html(data):
