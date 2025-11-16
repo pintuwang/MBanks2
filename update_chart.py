@@ -19,16 +19,17 @@ CACHE_DIR.mkdir(exist_ok=True)
 # ticker -> nice name
 BANKS = {
     "1155.KL": "Maybank",
+    "1295.KL": "Public Bank",
     "1023.KL": "CIMB",
-    "5819.KL": "Public Bank",
-    "6947.KL": "RHB Bank",
-    "1295.KL": "Hong Leong Bank",
-    "5183.KL": "AMMB",
-    "1066.KL": "Affin Bank",
-    "1795.KL": "Bank Islam",
-    "2481.KL": "Alliance Bank",
-    "9682.KL": "MBSB"
+    "5819.KL": "HLB",
+    "1066.KL": "RHB",
+    "1015.KL": "AmBank",
+    "1082.KL": "HLFG",
+    "2488.KL": "Alliance Bank",
+    "1171.KL": "MBSB Bank",
+    "5185.KL": "Affin Bank"
 }
+
 # ----------------------------
 
 def cached_download(ticker: str) -> pd.DataFrame:
