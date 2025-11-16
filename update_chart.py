@@ -79,10 +79,13 @@ def build_data():
         if s.isna().all().item():
             prices = []
         else:
-            s = s.dropna().asfreq('W-FRI', method='ffill')  # weekly
-            s.index = pd.to_datetime(s.index)               # ensure Timestamp
+            s = (s.dropna()
+                   .resample('W-FRI')
+                   .last()
+                   .dropna())
             prices = [{"date": d.strftime("%Y-%m-%d"), "price": round(v, 4)}
                       for d, v in s.items()]
+                
         data.append({"symbol": ticker, "name": name, "prices": prices})
     return data
 
