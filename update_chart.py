@@ -82,11 +82,12 @@ def build_data():
 
         weekly = []
         for fri in fri_days:
-            # nearest price on or before Friday
-            price = s.loc[:fri].iloc[-1] if not s.loc[:fri].empty else np.nan
-            if pd.notna(price):
-                weekly.append({"date": fri.strftime("%Y-%m-%d"),  # string
-                               "price": round(float(price), 4)})
+            subset = s.loc[:fri]            # slice up to Friday
+            if subset.empty:
+                continue
+            price = subset.iloc[-1]         # guaranteed scalar
+            weekly.append({"date": fri.strftime("%Y-%m-%d"),
+                           "price": round(float(price), 4)})
         data.append({"symbol": ticker, "name": name, "prices": weekly})
     return data
 
