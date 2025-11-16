@@ -57,7 +57,12 @@ def build_data():
     base_day = cal[cal <= pd.Timestamp(BASE_DATE)][-1]  # last trading day <= BASE_DATE
 
     series_map = {t: cached_download(t, cal) for t in TICKER_NAME_MAP}
-    base_prices = {t: s.loc[base_day] for t, s in series_map.items() if pd.notna(s.loc[base_day])}
+    base_prices = {}
+    for t, s in series_map.items():
+        val = s.loc[base_day]
+        if np.isscalar(val) and pd.notna(val):
+            base_prices[t] = val
+
     if len(base_prices) < 8:
         raise ValueError(f"Base day {base_day} has data for only {len(base_prices)} banks")
 
