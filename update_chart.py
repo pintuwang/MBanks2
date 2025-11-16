@@ -29,7 +29,6 @@ TICKER_NAME_MAP = {
     "5185.KL": "Affin Bank"
 }
 HIGHLIGHT_SYM = "1155.KL"
-BASE_DATE     = "2024-07-01"
 END_DATE      = datetime.today().strftime("%Y-%m-%d")
 CACHE_DIR     = pathlib.Path("cache")
 CACHE_DIR.mkdir(exist_ok=True)
@@ -46,31 +45,36 @@ def cached_download(ticker: str, cal: pd.DatetimeIndex) -> pd.Series:
     if cache_file.exists():
         s = pd.read_parquet(cache_file)
     else:
-        df = yf.download(ticker, start=BASE_DATE, end=END_DATE, progress=False, auto_adjust=True)
+        df = yf.download(ticker, start="2024-04-01", end=END_DATE, progress=False, auto_adjust=True)
         s = df["Close"].dropna()
-        s.name = ticker  # <-- fix: set series name, not index
+        s.name = ticker
         s.to_parquet(cache_file)
     return s.reindex(cal).ffill(limit=5)
 
 def build_data():
-    cal = trading_calendar(BASE_DATE, END_DATE)
-    base_day = cal[cal <= pd.Timestamp(BASE_DATE)][-1]  # last trading day <= BASE_DATE
+    # 1. build KLSE trading-day calendar (go back extra 3 months)
+    cal = trading_calendar("2024-04-01", END_DATE)
 
-    # widen window so thin counters have data
-    series_map = {t: cached_download(t, cal) for t in TICKER_NAME_MAP}
-    base_prices = {}
-    for t, s in series_map.items():
-        val = s.loc[base_day]
-        if np.isscalar(val) and pd.notna(val):
-            base_prices[t] = val
+    # 2. download each ticker (wide window) and store series
+    series_map = {}
+    for t in TICKER_NAME_MAP:
+        s = cached_download(t, cal)          # may be all-NaN
+        series_map[t] = s
 
-    if len(base_prices) < 1:          # allow even 1 bank
-        raise ValueError(f"Base day {base_day} has data for only {len(base_prices)} banks")
+    # 3. find the first day that has ≥1 valid price
+    first_valid = None
+    for day in cal:
+        if any(pd.notna(s.loc[day]) for s in series_map.values()):
+            first_valid = day
+            break
+    if first_valid is None:
+        raise RuntimeError("No prices at all in the entire period – check tickers.")
 
+    # 4. build price list for each bank
     data = []
     for ticker, name in TICKER_NAME_MAP.items():
         s = series_map[ticker]
-        if s.isna().all():  # truly no data
+        if s.isna().all():              # truly no data -> placeholder
             prices = []
         else:
             s = s.dropna().asfreq('W-FRI', method='ffill')  # weekly
