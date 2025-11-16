@@ -10,7 +10,7 @@ from datetime import datetime
 import json, os, pandas as pd, pathlib
 
 # ---------- config ----------
-BASE_DATE     = "2024-07-01"
+BASE_DATE     = "2024-07-23"
 END_DATE      = datetime.today().strftime("%Y-%m-%d")
 HIGHLIGHT_SYM = "1155.KL"          # <<<<< change here if you want another bank
 CACHE_DIR     = pathlib.Path("cache")
