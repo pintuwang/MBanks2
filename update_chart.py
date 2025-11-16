@@ -75,7 +75,8 @@ def build_data():
     data = []
     for ticker, name in TICKER_NAME_MAP.items():
         s = series_map[ticker]
-        if s.isna().all():              # truly no data -> placeholder
+        
+        if s.isna().all().item():       # <-- scalar bool
             prices = []
         else:
             s = s.dropna().asfreq('W-FRI', method='ffill')  # weekly
