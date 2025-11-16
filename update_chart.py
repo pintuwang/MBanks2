@@ -64,9 +64,10 @@ def build_data():
     # 3. find the first day that has ≥1 valid price
     first_valid = None
     for day in cal:
-        if any(pd.notna(s.loc[day]) for s in series_map.values()):   # FIX-2 scalar check
+        if any(bool(pd.notna(s.loc[day].item())) for s in series_map.values()):
             first_valid = day
             break
+  
     if first_valid is None:
         raise RuntimeError("No prices at all in the entire period – check tickers.")
 
