@@ -75,14 +75,15 @@ def build_data():
     data = []
     for ticker, name in TICKER_NAME_MAP.items():
         s = series_map[ticker]
-        
-        if s.isna().all().item():       # <-- scalar bool
+
+        if s.isna().all().item():
             prices = []
         else:
             s = s.dropna().asfreq('W-FRI', method='ffill')  # weekly
+            s.index = pd.to_datetime(s.index)               # ensure Timestamp
             prices = [{"date": d.strftime("%Y-%m-%d"), "price": round(v, 4)}
                       for d, v in s.items()]
-        data.append({"symbol": ticker, "name": name, "prices": prices})
+       data.append({"symbol": ticker, "name": name, "prices": prices})
     return data
 
 def update_html(data):
