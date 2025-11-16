@@ -61,31 +61,26 @@ def build_data():
         s = cached_download(t, cal)          # may be all-NaN
         series_map[t] = s
 
-      # 3. find the first day that has ≥1 valid price
+    # 3. find the first day that has ≥1 valid price
     first_valid = None
     for day in cal:
-        if any(~s.loc[day].isna().all() for s in series_map.values()):
+        if any(pd.notna(s.loc[day]) for s in series_map.values()):   # FIX-2 scalar check
             first_valid = day
             break
     if first_valid is None:
         raise RuntimeError("No prices at all in the entire period – check tickers.")
 
-   
     # 4. build price list for each bank
     data = []
     for ticker, name in TICKER_NAME_MAP.items():
         s = series_map[ticker]
-
         if s.isna().all().item():
             prices = []
         else:
-            s = (s.dropna()
-                   .resample('W-FRI')
-                   .last()
-                   .dropna())
-            prices = [{"date": d.strftime("%Y-%m-%d"), "price": round(v, 4)}
+            s = s.dropna().resample('W-FRI').last().dropna()   # weekly
+            # FIX-1: convert index label to datetime before strftime
+            prices = [{"date": pd.to_datetime(d).strftime("%Y-%m-%d"), "price": round(v, 4)}
                       for d, v in s.items()]
-                
         data.append({"symbol": ticker, "name": name, "prices": prices})
     return data
 
