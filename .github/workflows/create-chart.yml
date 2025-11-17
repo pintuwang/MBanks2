@@ -1,3 +1,16 @@
+      - name: Debug Alliance Bank data
+        run: |
+          python -c "
+          import yfinance as yf, pandas as pd
+          s = yf.download('2481.KL','2024-07-01','2025-07-01').Close.dropna()
+          print('Alliance 2481.KL rows:', len(s))
+          if len(s):
+              print('First row:', s.iloc[0], 'on', s.index[0])
+              print('Last  row:', s.iloc[-1], 'on', s.index[-1])
+          else:
+              print('ZERO rows – ticker dead on Yahoo')
+          "
+
 name: Update KLSE Bank Chart
 
 on:
