@@ -1,22 +1,9 @@
-      - name: Debug Alliance Bank data
-        run: |
-          python -c "
-          import yfinance as yf, pandas as pd
-          s = yf.download('2481.KL','2024-07-01','2025-07-01').Close.dropna()
-          print('Alliance 2481.KL rows:', len(s))
-          if len(s):
-              print('First row:', s.iloc[0], 'on', s.index[0])
-              print('Last  row:', s.iloc[-1], 'on', s.index[-1])
-          else:
-              print('ZERO rows – ticker dead on Yahoo')
-          "
-
 name: Update KLSE Bank Chart
 
 on:
   schedule:
-    - cron: '0 2 * * 1-5'          # 02:00 UTC Mon-Fri
-  workflow_dispatch:               # <-- keeps manual button
+    - cron: '0 2 * * 1-5'
+  workflow_dispatch:
 
 jobs:
   update:
@@ -32,6 +19,19 @@ jobs:
 
       - name: Install dependencies
         run: pip install yfinance pyarrow
+
+      - name: Debug Alliance Bank data               # ← ADD HERE
+        run: |
+          python -c "
+          import yfinance as yf, pandas as pd
+          s = yf.download('2481.KL','2024-07-01','2025-07-01').Close.dropna()
+          print('Alliance 2481.KL rows:', len(s))
+          if len(s):
+              print('First row:', s.iloc[0], 'on', s.index[0])
+              print('Last  row:', s.iloc[-1], 'on', s.index[-1])
+          else:
+              print('ZERO rows – ticker dead on Yahoo')
+          "
 
       - name: Run update script
         run: python update_chart.py
