@@ -24,7 +24,7 @@ TICKER_NAME_MAP = {
     "1066.KL": "RHB",
     "1015.KL": "AmBank",
     "1082.KL": "HLFG",
-    "2488.KL": "Alliance Bank",
+    "2481.KL": "Alliance Bank",
     "1171.KL": "MBSB Bank",
     "5185.KL": "Affin Bank"
 }
