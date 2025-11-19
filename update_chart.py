@@ -34,8 +34,10 @@ def cached_download(ticker: str) -> pd.Series:
     file = CACHE_DIR / f"{ticker}.parquet"
     if file.exists():
         return pd.read_parquet(file)
-    s = yf.download(ticker, start="2024-06-25", end=END_DATE, auto_adjust=False, progress=False)["Adj Close"]
-    s = s.dropna().rename(ticker)
+    raw = yf.download(ticker, start="2024-06-25", end=END_DATE,
+                      auto_adjust=False, progress=False)["Adj Close"]
+    s = raw.dropna()
+    s.name = ticker              # scalar rename
     s.to_parquet(file)
     return s
 
