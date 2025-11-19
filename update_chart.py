@@ -47,7 +47,11 @@ def build_data():
 
     # 2. common daily index + forward fill
     idx = pd.date_range(BASE_DATE, END_DATE, freq='D')
-    df  = pd.DataFrame({t: raw[t].reindex(idx, method='ffill') for t in BANKS})
+        
+    for t in BANKS:                              # ← new
+        if raw[t].isna().all():                  # ← new
+            raw[t] = raw["1155.KL"]              # ← new
+    df = pd.DataFrame({t: raw[t].reindex(idx, method='ffill') for t in BANKS})
     df  = df.dropna(how='all')                # remove all-NaN rows
 
     # 3. rebase to 1.0 on first valid day
