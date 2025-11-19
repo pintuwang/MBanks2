@@ -1,101 +1,71 @@
 #!/usr/bin/env python3
 """
-Regenerate index.html with:
-  - 10 KLSE bank names
-  - one bank highlighted
-  - KLSE-trading-day calendar
-  - parquet cache
-  - weekly sampling (runner-proof scalar build)
+GitHub-runner-proof daily-price updater for 10 KLSE banks.
+Plots daily lines (no resample) → no string-index bugs.
 """
 
 import yfinance as yf
 import pandas as pd
-import numpy as np
 import json
 import pathlib
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # ---------- config ----------
-TICKER_NAME_MAP = {
+BANKS = {
     "1155.KL": "Maybank",
     "1295.KL": "Public Bank",
     "1023.KL": "CIMB",
     "5819.KL": "HLB",
     "1066.KL": "RHB",
-    "1015.KL": "AmBank",
     "1082.KL": "HLFG",
+    "1015.KL": "AmBank",
     "2488.KL": "Alliance Bank",
     "1171.KL": "MBSB Bank",
     "5185.KL": "Affin Bank"
 }
-HIGHLIGHT_SYM = "1155.KL"
-END_DATE      = datetime.today().strftime("%Y-%m-%d")
+BASE_DATE     = "2024-07-01"
+END_DATE      = (datetime.today() + timedelta(days=1)).strftime("%Y-%m-%d")
 CACHE_DIR     = pathlib.Path("cache")
 CACHE_DIR.mkdir(exist_ok=True)
 # ----------------------------
 
-def trading_calendar(start: str, end: str) -> pd.DatetimeIndex:
-    """All trading days for KLSE using Maybank as proxy."""
-    df = yf.download("1155.KL", start=start, end=end, progress=False, auto_adjust=True)
-    return df.index
-
-def cached_download(ticker: str, cal: pd.DatetimeIndex) -> pd.Series:
-    """Return Close series indexed by KLSE calendar; forward-fill gaps."""
-    cache_file = CACHE_DIR / f"{ticker}.parquet"
-    if cache_file.exists():
-        s = pd.read_parquet(cache_file)
-    else:
-        df = yf.download(ticker, start="2024-04-01", end=END_DATE, progress=False, auto_adjust=True)
-        s = df["Close"].dropna()
-        s.name = ticker
-        s.to_parquet(cache_file)
-    return s.reindex(cal).ffill(limit=5)
+def cached_download(ticker: str) -> pd.Series:
+    """Daily Adj Close from Yahoo; parquet cache."""
+    file = CACHE_DIR / f"{ticker}.parquet"
+    if file.exists():
+        return pd.read_parquet(file)
+    s = yf.download(ticker, start="2024-06-25", end=END_DATE, auto_adjust=False, progress=False)["Adj Close"]
+    s = s.dropna().rename(ticker)
+    s.to_parquet(file)
+    return s
 
 def build_data():
-    # 1. KLSE trading days
-    cal = trading_calendar("2024-04-01", END_DATE)
+    # 1. download all banks (daily)
+    raw = {t: cached_download(t) for t in BANKS}
 
-    # 2. download each ticker (wide window)
-    series_map = {t: cached_download(t, cal) for t in TICKER_NAME_MAP}
+    # 2. common daily index + forward fill
+    idx = pd.date_range(BASE_DATE, END_DATE, freq='D')
+    df  = pd.DataFrame({t: raw[t].reindex(idx, method='ffill') for t in BANKS})
+    df  = df.dropna(how='all')                # remove all-NaN rows
 
-    # 3. first day with ≥1 price
-    first_valid = None
-    for day in cal:
-        if any(bool(pd.notna(s.loc[day].item())) for s in series_map.values()):
-            first_valid = day
-            break
-    if first_valid is None:
-        raise RuntimeError("No prices at all – check tickers.")
+    # 3. rebase to 1.0 on first valid day
+    base = df.iloc[0]
+    rel  = df.div(base).fillna(method='ffill')
 
-    # 4. weekly Friday list – runner-proof scalar build
+    # 4. build JSON for Plotly
     data = []
-    for ticker, name in TICKER_NAME_MAP.items():
-        s = series_map[ticker]
-
-        if s.isna().all().item():          # truly no data
-            data.append({"symbol": ticker, "name": name, "prices": []})
-            continue
-
-        # drop NaNs and build weekly Fridays manually
-        s = s.dropna()
-        fri_days = pd.date_range(s.index.min(), s.index.max(), freq='W-FRI')
-
-        weekly = []
-        for fri in fri_days:
-            subset = s.loc[:fri]            # slice up to Friday
-            if subset.empty:
-                continue
-            price = subset.iloc[-1]         # guaranteed scalar
-            weekly.append({"date": fri.strftime("%Y-%m-%d"),
-                           "price": round(float(price), 4)})
-        data.append({"symbol": ticker, "name": name, "prices": weekly})
+    for t, name in BANKS.items():
+        prices = [{"date": d.strftime("%Y-%m-%d"), "price": round(v, 4)}
+                  for d, v in rel[t].items()]
+        data.append({"symbol": t, "name": name, "prices": prices})
     return data
 
 def update_html(data):
-    html = pathlib.Path("index.html")
-    content = html.read_text(encoding="utf-8")
-    updated = content.replace("/* JSON_DATA_PLACEHOLDER */", json.dumps(data))
-    html.write_text(updated, encoding="utf-8")
+    pathlib.Path("index.html").write_text(
+        pathlib.Path("index.html").read_text(encoding="utf-8")
+        .replace("/* JSON_DATA_PLACEHOLDER */", json.dumps(data)),
+        encoding="utf-8"
+    )
 
 if __name__ == "__main__":
     update_html(build_data())
